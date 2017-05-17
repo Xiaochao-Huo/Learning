@@ -325,6 +325,6 @@ void Learning::GetLABData_All(vector < vector <int>> &block_sum_data, vector < v
 
 void Learning::AdaBoost()
 {
-	
+	//
 }
 
