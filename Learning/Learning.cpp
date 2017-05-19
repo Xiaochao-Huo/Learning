@@ -325,6 +325,75 @@ void Learning::GetLABData_All(vector < vector <int>> &block_sum_data, vector < v
 
 void Learning::AdaBoost()
 {
-	//
+	initSample();
+	//auto test = samp[5];
+	//for (auto i : test.img)
+	//	cout << i << " ";
+	//cout << endl;
+	//cout << test.polar << endl;
+	//cout << test.weight;
+	int T = 1;//AdaBoost弱分类器个数
+	double totalW;
+	for (int i = 0; i < T; ++i)
+	{
+		int pmax, pmin;
+		int nper;
+		pair<int, double> best;
+		//归一化权重
+		totalW = 0;
+		for (auto s : samp)
+			totalW += s.weight;
+		for (auto s : samp)
+			s.weight /= totalW;
+
+		for (int j = 0; j < 2400; ++j)//对每个特征，即6*20*20个特征
+		{
+			vector <int> tempPosData;
+			vector <int> tempNegData;
+
+			for (int k = 0; k < 256;++k)
+			{
+				int l = 0;
+				//获得正负样本这个特征的值
+				for (;; ++l)
+				{
+					if (!samp[l].polar)
+						break;
+					tempPosData.push_back(samp[l].img[j]);
+				}
+				for (; l < samp.size(); ++l)
+					tempNegData.push_back(samp[l].img[j]);
+				//将所有特征值分正负样本进行排序
+				sort(tempPosData.begin(), tempPosData.end());
+				sort(tempNegData.begin(), tempNegData.end());
+				//for (auto p : tempPosData)
+				//	cout << p << " ";
+				//cout << endl;
+				//for (auto n : tempNegData)
+				//	cout << n << " ";
+			}
+		}
+	}
+
 }
 
+void Learning::initSample()
+{
+
+	double p, n;//正负样本数量
+	double pp, nn;//正负样本初始权重
+
+	p = pos_total_lab_data.size();
+	n = neg_total_lab_data.size();
+
+	//计算初始权重
+	pp = 1 / (2 * p);
+	nn = 1 / (2 * n);
+
+	cout << n << " " << p << " " << nn << " " << pp << endl;
+	for (auto v : pos_total_lab_data)
+		samp.push_back(sample(v, true, pp));
+	for (auto v : neg_total_lab_data)
+		samp.push_back(sample(v, false, nn));
+
+}

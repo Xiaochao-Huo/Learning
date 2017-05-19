@@ -6,7 +6,7 @@
 #include <map>
 
 #define POSNUM 2429//正训练集大小
-#define NEGNUM 32
+#define NEGNUM 559
 #define _CRT_SECURE_NO_WARNINGS
 
 //The scale number for double rate difference
@@ -34,6 +34,13 @@ struct pyramidSample {
 	int down_sample_move_2;//double downsample move value for this scale
 	float deflate_rate;//downsampling rate for this scale after double sampling
 	float total_deflate_rate;//total downsampling rate for this scale
+};
+//样本的结构
+struct sample {
+	vector <int> img;//	图像
+	bool polar;//正例=true，反例=false
+	double weight;//样本权重
+	sample(vector <int> im, bool pon, double weig) :img(im), polar(pon), weight(weig) {}
 };
 struct weakModel {
 
@@ -69,6 +76,8 @@ public:
 	//反例的haar特征向量和lab特征向量
 	vector < vector <int>> neg_block_sum_data;
 	vector < vector <int>> neg_total_lab_data;
+	//样本集
+	vector <sample> samp;
 
 	//the buffer definition for block sum value calsulation
 	unsigned short *haar_data_x, *haar_data_y;
@@ -98,4 +107,5 @@ public:
 	void GetLABData_All(vector < vector <int>> &block_sum_data, vector < vector <int>> &total_lab_data);
 	//学习
 	void AdaBoost();
+	void initSample();
 };
