@@ -1,4 +1,7 @@
 #include "Learning.h"
+#include <opencv.hpp>
+
+using namespace cv;
 
 int main()
 {
@@ -79,9 +82,12 @@ int main()
 	learning.GetBlockSumHaarData_All(negimg, learning.neg_block_sum_data);
 	learning.GetLABData_All(learning.neg_block_sum_data, learning.neg_total_lab_data);
 
+
+
 	//vector <vector <int>> temp = learning.pos_total_lab_data;
 	learning.AdaBoost();
 
+	
 	while (1);
 	//ofstream output("b.txt");
 	//int k;

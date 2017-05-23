@@ -9,8 +9,7 @@ Learning::Learning()
 	pLABFeat_Array = NULL;
 	pOriLABFeat_Array = NULL;
 
-	//the downsampling scale and rate struct
-	pSampleRate = NULL;
+
 
 	//the file buffer
 	pFileBuf = NULL;
@@ -38,23 +37,7 @@ void Learning::init()
 
 	pOriLABCenFeatNum = (int **)malloc(sizeof(int *));
 
-	pSampleRate = (pyramidSample *)malloc(sizeof(pyramidSample)*MAX_IMG_SCALE_NUM);
-	n = 0;
-	for (i = 0; i < MAX_IMG_SCALE_NUM; i += level_num_one_region)
-	{
-		for (j = 0; j < level_num_one_region; ++j)
-		{
-			pSampleRate[i + j].deflate_rate = 1.0;
-			for (k = 0; k < j; ++k)
-				pSampleRate[i + j].deflate_rate *= total_delta_rate_one_level;
-			pSampleRate[i + j].down_sample_move_2 = n;
-			pSampleRate[i + j].down_sample_rate_2 = 1;
-			for (k = 0; k < n; ++k)
-				pSampleRate[i + j].down_sample_rate_2 *= 2;
-			pSampleRate[i + j].total_deflate_rate = pSampleRate[i + j].down_sample_rate_2*pSampleRate[i + j].deflate_rate;
-		}
-		n++;
-	}
+	
 }
 //设置参数
 void Learning::setParam(int confMinThres, int weightMinThres, int Xshift, int Yshift, int endScaleNum, int startScaleNum)
@@ -156,11 +139,6 @@ void Learning::releaseAll()
 			free(pOriLABCenFeatNum[j]);
 		free(pOriLABCenFeatNum);
 		pOriLABCenFeatNum = NULL;
-	}
-	if (pSampleRate)
-	{
-		free(pSampleRate);
-		pSampleRate = NULL;
 	}
 	if (detectModel)
 	{
@@ -336,9 +314,13 @@ void Learning::AdaBoost()
 	double totalW;
 	for (int i = 0; i < T; ++i)
 	{
-		int pmax, pmin;
-		int nper;
-		pair<int, double> best;
+		
+		double pLarger, pLess;
+		double nLarger,nLess;
+		double error; //分类误差
+		double buff1,buff2;//分类误差暂存
+		buffWeakModel best = { 0,2.0,true };
+		bool direction;//方向参数，true代表大于阈值为真，false代表小于阈值为真
 		//归一化权重
 		totalW = 0;
 		for (auto s : samp)
@@ -348,35 +330,76 @@ void Learning::AdaBoost()
 
 		for (int j = 0; j < 2400; ++j)//对每个特征，即6*20*20个特征
 		{
-			vector <int> tempPosData;
-			vector <int> tempNegData;
-
+			int n = 0;
+			//将所有特征值分正负样本进行排序
+			sort(samp.begin(), samp.end(),
+				[j](const sample &s1, const sample &s2)
+			{return s1.img[j] < s2.img[j]; });
+			pLarger = 0;
+			pLess = 0;
+			nLarger = 0;
+			nLess = 0;
+			for (auto v : samp)
+				if (v.polar)
+					pLarger += v.weight;
+				else
+					nLarger += v.weight;
 			for (int k = 0; k < 256;++k)
 			{
-				int l = 0;
-				//获得正负样本这个特征的值
-				for (;; ++l)
-				{
-					if (!samp[l].polar)
+
+				//更改分类结果			
+				for (;n < samp.size();++n)
+					if (samp[n].img[j] > k)
 						break;
-					tempPosData.push_back(samp[l].img[j]);
+					else
+					{
+						if (samp[n].polar)
+						{
+							pLess += samp[n].weight;
+							pLarger -= samp[n].weight;
+						}
+						else
+						{
+							nLess += samp[n].weight;
+							nLarger -= samp[n].weight;
+						}
+					}
+
+
+
+				//可以优化，初始化完后每次加减对应增量
+				//cout << pLess << " " << nLess << " " << pLarger << " " << nLarger << endl;
+				;
+				//计算分类误差
+				buff1 = pLarger + nLess;
+				buff2 = pLess + nLarger;
+				if (buff1 < buff2)
+				{
+					error = buff1;
+					direction = true;
 				}
-				for (; l < samp.size(); ++l)
-					tempNegData.push_back(samp[l].img[j]);
-				//将所有特征值分正负样本进行排序
-				sort(tempPosData.begin(), tempPosData.end());
-				sort(tempNegData.begin(), tempNegData.end());
-				//for (auto p : tempPosData)
-				//	cout << p << " ";
-				//cout << endl;
-				//for (auto n : tempNegData)
-				//	cout << n << " ";
+				else
+				{
+					error = buff2;
+					direction = false;
+				}
+				//cout << error << endl;
+				if (best.err > error)
+				{
+					best.thre = j;
+					best.err = error;
+					best.direct = direction;
+					cout << best.thre << " " << best.err << " " << best.direct << " " << endl;
+				}
+				
 			}
+			
+			;
 		}
 	}
 
 }
-
+//初始化样本集
 void Learning::initSample()
 {
 

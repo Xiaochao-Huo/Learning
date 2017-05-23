@@ -1,9 +1,11 @@
-#include <opencv.hpp>
+//#include <opencv.hpp>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <malloc.h>
 #include <map>
+#include <algorithm>
 
 #define POSNUM 2429//正训练集大小
 #define NEGNUM 559
@@ -25,15 +27,19 @@
 //Minumum face detection width and height
 #define wd 20	
 #define ht 20
+//每层强分类器的最大误识率和最低检测率
+#define f 0.5
+#define d 0.99
+//最终层叠分类器的误识率
+#define ftarget 0.001
 
 using namespace std;
-using namespace cv;
 
-struct pyramidSample {
-	int down_sample_rate_2;//double downsampling rate for this scale
-	int down_sample_move_2;//double downsample move value for this scale
-	float deflate_rate;//downsampling rate for this scale after double sampling
-	float total_deflate_rate;//total downsampling rate for this scale
+//选择弱分类器的时候用于对比分类器误差的结构
+struct buffWeakModel {
+	int thre;//阈值
+	double err;//误差
+	bool direct;//方向
 };
 //样本的结构
 struct sample {
@@ -43,7 +49,9 @@ struct sample {
 	sample(vector <int> im, bool pon, double weig) :img(im), polar(pon), weight(weig) {}
 };
 struct weakModel {
-
+	int thre;
+	int err;
+	
 };
 struct Model{
 	int step;
@@ -89,9 +97,6 @@ public:
 
 	int *pFileBuf;
 
-	//the downsampling scale and rate struct
-	pyramidSample *pSampleRate;
-
 	void init();
 	//设置参数
 	void setParam(int confMinThres = 0, int weightMinThres = 2, int Xshift = 2, int Yshift = 2, int endScaleNum = 24, int startScaleNum = 4);
@@ -108,4 +113,10 @@ public:
 	//学习
 	void AdaBoost();
 	void initSample();
+
+	//对灰度值，正负样本 数据对进行排序的谓词函数
+	static bool imgSmaller(const pair<int, bool> &s1, const pair<int, bool> &s2)
+	{
+		return s1.first < s2.first;
+	}
 };
