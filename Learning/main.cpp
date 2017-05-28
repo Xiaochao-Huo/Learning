@@ -6,7 +6,6 @@ using namespace cv;
 int main()
 {
 	int i, j;
-	Model tempModel;
 	string s;
 	IplImage *src;
 	vector < vector <int>> posimg;
@@ -83,11 +82,10 @@ int main()
 	learning.GetLABData_All(learning.neg_block_sum_data, learning.neg_total_lab_data);
 
 
+	classfier test;
+	double te=1;
+	learning.trainStrongClassfier(test, te);
 
-	//vector <vector <int>> temp = learning.pos_total_lab_data;
-	learning.AdaBoost();
-
-	
 	while (1);
 	//ofstream output("b.txt");
 	//int k;

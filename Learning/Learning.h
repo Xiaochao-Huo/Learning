@@ -6,10 +6,12 @@
 #include <malloc.h>
 #include <map>
 #include <algorithm>
+#include <cmath>
+#include <iomanip>
+
 
 #define POSNUM 2429//正训练集大小
 #define NEGNUM 559
-#define _CRT_SECURE_NO_WARNINGS
 
 //The scale number for double rate difference
 #define level_num_one_region 3
@@ -28,18 +30,32 @@
 #define wd 20	
 #define ht 20
 //每层强分类器的最大误识率和最低检测率
-#define f 0.5
-#define d 0.99
+#define maxErrorDetectRate 0.5
+#define detectRate 0.99
 //最终层叠分类器的误识率
-#define ftarget 0.001
+#define errorDetectRate 0.001
+
+#define adjustRate 0.05
 
 using namespace std;
 
-//选择弱分类器的时候用于对比分类器误差的结构
-struct buffWeakModel {
+
+//ofstream output("log.txt");
+
+struct weakModel {
+	int num;//特征
 	int thre;//阈值
 	double err;//误差
 	bool direct;//方向
+};
+
+struct classfier {
+	vector <weakModel> weaks;
+	vector <double> weight;
+	double thre = 0;
+};
+struct cascade {
+	vector <classfier> strongs;
 };
 //样本的结构
 struct sample {
@@ -48,22 +64,13 @@ struct sample {
 	double weight;//样本权重
 	sample(vector <int> im, bool pon, double weig) :img(im), polar(pon), weight(weig) {}
 };
-struct weakModel {
-	int thre;
-	int err;
-	
-};
-struct Model{
-	int step;
-	int thres;
-	weakModel *pModel;
-};
+
+
 class Learning {
 public:
 	Learning();
 	~Learning();
 
-	Model *detectModel;
 
 	//const int total_multi_data;
 	int total_multi_data;
@@ -86,6 +93,8 @@ public:
 	vector < vector <int>> neg_total_lab_data;
 	//样本集
 	vector <sample> samp;
+
+	cascade model;
 
 	//the buffer definition for block sum value calsulation
 	unsigned short *haar_data_x, *haar_data_y;
@@ -119,4 +128,16 @@ public:
 	{
 		return s1.first < s2.first;
 	}
+	//训练弱分类器的函数
+	void trainWeakClassfier(weakModel &best);
+	//训练强分类器的函数,返回值为误识率，D为检测率
+	double trainStrongClassfier(classfier &strongClassfier, double &D);
+
+	void adjustSampleWeight(const weakModel &best, double beta);
+	
+	void cascade();
+	//用buff对it指向的样本中的图像进行检测
+	bool test(const classfier &buff, decltype(samp.begin()) it);
+	//调整强分类器阈值使检测率达到标准
+	double adjustDetectRate(classfier &strongClassfier, double &d);
 };

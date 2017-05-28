@@ -2,7 +2,6 @@
 
 Learning::Learning()
 {
-	detectModel = NULL;
 
 	//the precalculated buffer array model for optimization
 	pOriLABCenFeatNum = NULL;
@@ -25,15 +24,9 @@ Learning::~Learning()
 }
 void Learning::init()
 {
-	int i, j;
-	int k, n;
 
 	releaseAll();
 
-	detectModel = (Model *)malloc(sizeof(Model));
-	detectModel->step = 0;
-	detectModel->thres = 0;
-	detectModel->pModel = NULL;
 
 	pOriLABCenFeatNum = (int **)malloc(sizeof(int *));
 
@@ -140,11 +133,6 @@ void Learning::releaseAll()
 		free(pOriLABCenFeatNum);
 		pOriLABCenFeatNum = NULL;
 	}
-	if (detectModel)
-	{
-		free(detectModel);
-		detectModel = NULL;
-	}
 	if (pFileBuf)
 	{
 		free(pFileBuf);
@@ -156,7 +144,7 @@ void Learning::releaseAll()
 //获得6通道的haar特征图像
 void Learning::GetBlockSumHaarData_All(vector < vector <int>> &img,vector < vector <int>> &block_sum_data)
 {
-	int k, i, j;
+	int i, j;
 	int haar_ht, haar_wd;
 
 	for (auto eachImg:img)
@@ -243,7 +231,7 @@ void Learning::GetBlockSumHaarData_All(vector < vector <int>> &img,vector < vect
 //获得6通道的LAB特征图像
 void Learning::GetLABData_All(vector < vector <int>> &block_sum_data, vector < vector <int>> &total_lab_data)
 {
-	int ii, i, j, k;
+	int ii, i, j;
 	int cenArray;
 	int haar_ht, haar_wd;
 	int n, r;
@@ -311,91 +299,14 @@ void Learning::AdaBoost()
 	//cout << test.polar << endl;
 	//cout << test.weight;
 	int T = 1;//AdaBoost弱分类器个数
-	double totalW;
+	
 	for (int i = 0; i < T; ++i)
 	{
 		
-		double pLarger, pLess;
-		double nLarger,nLess;
-		double error; //分类误差
-		double buff1,buff2;//分类误差暂存
-		buffWeakModel best = { 0,2.0,true };
-		bool direction;//方向参数，true代表大于阈值为真，false代表小于阈值为真
-		//归一化权重
-		totalW = 0;
-		for (auto s : samp)
-			totalW += s.weight;
-		for (auto s : samp)
-			s.weight /= totalW;
+		
 
-		for (int j = 0; j < 2400; ++j)//对每个特征，即6*20*20个特征
-		{
-			int n = 0;
-			//将所有特征值分正负样本进行排序
-			sort(samp.begin(), samp.end(),
-				[j](const sample &s1, const sample &s2)
-			{return s1.img[j] < s2.img[j]; });
-			pLarger = 0;
-			pLess = 0;
-			nLarger = 0;
-			nLess = 0;
-			for (auto v : samp)
-				if (v.polar)
-					pLarger += v.weight;
-				else
-					nLarger += v.weight;
-			for (int k = 0; k < 256;++k)
-			{
-
-				//更改分类结果			
-				for (;n < samp.size();++n)
-					if (samp[n].img[j] > k)
-						break;
-					else
-					{
-						if (samp[n].polar)
-						{
-							pLess += samp[n].weight;
-							pLarger -= samp[n].weight;
-						}
-						else
-						{
-							nLess += samp[n].weight;
-							nLarger -= samp[n].weight;
-						}
-					}
-
-
-
-				//可以优化，初始化完后每次加减对应增量
-				//cout << pLess << " " << nLess << " " << pLarger << " " << nLarger << endl;
-				;
-				//计算分类误差
-				buff1 = pLarger + nLess;
-				buff2 = pLess + nLarger;
-				if (buff1 < buff2)
-				{
-					error = buff1;
-					direction = true;
-				}
-				else
-				{
-					error = buff2;
-					direction = false;
-				}
-				//cout << error << endl;
-				if (best.err > error)
-				{
-					best.thre = j;
-					best.err = error;
-					best.direct = direction;
-					cout << best.thre << " " << best.err << " " << best.direct << " " << endl;
-				}
-				
-			}
-			
-			;
-		}
+		
+		
 	}
 
 }
@@ -419,4 +330,193 @@ void Learning::initSample()
 	for (auto v : neg_total_lab_data)
 		samp.push_back(sample(v, false, nn));
 
+}
+
+void Learning::trainWeakClassfier(weakModel &best)
+{
+	double pLarger, pLess;
+	double nLarger, nLess;
+	double error; //分类误差
+	double buff1, buff2;//分类误差暂存
+	bool direction;//方向参数，true代表大于阈值为真，false代表小于阈值为真
+	for (int j = 0; j < 2400; ++j)//对每个特征，即6*20*20个特征
+	{
+		int n = 0;
+
+		//将所有特征值分正负样本进行排序
+		sort(samp.begin(), samp.end(),
+			[j](const sample &s1, const sample &s2)
+		{return s1.img[j] < s2.img[j]; });
+
+		pLarger = 0;
+		pLess = 0;
+		nLarger = 0;
+		nLess = 0;
+		//初始化权重值
+		for (auto v : samp)
+			if (v.polar)
+				pLarger += v.weight;
+			else
+				nLarger += v.weight;
+
+		for (int k = 0; k < 256; ++k)
+		{
+			//更新分类结果			
+			for (; n < samp.size(); ++n)
+				if (samp[n].img[j] > k)
+					break;
+				else
+				{
+					if (samp[n].polar)
+					{
+						pLess += samp[n].weight;
+						pLarger -= samp[n].weight;
+					}
+					else
+					{
+						nLess += samp[n].weight;
+						nLarger -= samp[n].weight;
+					}
+				}
+
+			//计算分类误差
+			buff1 = pLarger + nLess;
+			buff2 = pLess + nLarger;
+			if (buff1 < buff2)
+			{
+				error = buff1;
+				direction = false;//选择大于阈值的部分为正例
+			}
+			else
+			{
+				error = buff2;
+				direction = true;//选择小于阈值的部分为反例
+			}
+			//cout << error << endl;
+			if (best.err > error)
+			{
+				best.num = j;
+				best.thre = k;
+				best.err = error;
+				best.direct = direction;
+				cout <<best.num << " " << best.thre << " " << best.err << " " << best.direct << " " << endl;
+			}
+			
+		}
+		//cout << setw(5) << j << " " << best.num << " " << best.thre << " " << best.err << " " << best.direct << " " << endl;
+	}
+}
+
+double Learning::trainStrongClassfier(classfier &strongClassfier,double &D)
+{
+	initSample();
+	int i = 0;
+	int n = 1;
+	double beta,f = 1;
+	int errtimes;
+	while (f > maxErrorDetectRate)
+	{
+		weakModel best = { 0,0,2.0,true };
+		double totalW;
+		//归一化权重
+		totalW = 0;
+		for (auto s : samp)
+			totalW += s.weight;
+		for (auto &s : samp)
+			s.weight /= totalW;
+
+		trainWeakClassfier(best);
+
+		beta = best.err / (1 - best.err);
+
+		strongClassfier.weaks.push_back(best);
+		strongClassfier.weight.push_back(log(1 / beta));
+
+		cout << 0.5 * log(1 / beta);
+		strongClassfier.thre += 0.5 * log(1 / beta);
+		cout << strongClassfier.thre;
+		adjustSampleWeight(best,beta);
+
+		f = adjustDetectRate(strongClassfier, D);	
+		
+	}
+	return f;
+}
+
+void Learning::adjustSampleWeight(const weakModel &best,double beta)
+{
+	for (auto &v : samp)
+		if (best.direct == (v.img[best.num] > best.thre))
+		{
+			v.weight *= beta; 
+		}
+	for (auto s : samp)
+		cout << s.weight << " ";
+}
+
+void Learning::cascade()
+{
+	initSample();
+	int i = 0;//强分类器个数
+	double F,D;//当前层的误识率和检测率
+	F = 1.0;
+	D = 1.0;
+	
+	while (F > errorDetectRate)
+	{
+		classfier buff;
+		F *= trainStrongClassfier(buff,D);
+		model.strongs.push_back(buff);
+		++i;
+		for (auto it = samp.begin(); it != samp.end();)
+		{
+			if (!(it->polar))
+				if (!test(buff, it))
+				{
+					samp.erase(it);
+					break;
+				}
+			++it;
+		}
+	}
+}
+
+bool Learning::test(const classfier &buff, decltype(samp.begin()) it)
+{
+	int w = 0;
+	for (int i = 0;i < buff.weaks.size();++i)
+		w += (buff.weaks[i].direct == (it->img[buff.weaks[i].num] > buff.weaks[i].thre)) ? buff.weight[i] : 0;
+	return w > buff.thre;
+}
+
+double Learning::adjustDetectRate(classfier &strongClassfier, double &D)
+{
+	int pos = 0;
+	int neg = 0;
+	int detected = 0;
+	int errdetected = 0;
+	double f, d = 0;
+	while (d < D * detectRate)
+	{
+		for (auto it = samp.begin(); it != samp.end(); ++it)
+		{
+			if (it->polar)
+			{
+				++pos;
+				if (test(strongClassfier, it))
+					++detected;
+			}
+			else
+			{
+				++neg;
+				if (test(strongClassfier, it));
+				++errdetected;
+			}
+		}
+		f = errdetected / (double)neg;
+		d = detected / (double)pos;
+
+		strongClassfier.thre -= adjustRate;
+	}
+	return f;
 }
